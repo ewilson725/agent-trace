@@ -45,3 +45,21 @@ export interface ParseIssue {
   message: string;
   raw: string;
 }
+
+// One tool_call joined with the tool_result that closed it, if any. `ok` and
+// `durationMs` mirror the result once it arrives; a span with no result yet
+// (or ever) stays `pending`.
+export interface ToolSpan {
+  name: string;
+  id?: string;
+  call: ToolCallEvent;
+  result?: ToolResultEvent;
+  ok?: boolean;
+  durationMs?: number;
+  pending: boolean;
+}
+
+export interface PairResult {
+  spans: ToolSpan[];
+  orphans: ToolResultEvent[];
+}
