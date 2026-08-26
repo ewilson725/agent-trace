@@ -63,3 +63,34 @@ export interface PairResult {
   spans: ToolSpan[];
   orphans: ToolResultEvent[];
 }
+
+// Per-tool row in the stats table. Only spans with a known durationMs count
+// towards calls/totalMs/avgMs/maxMs -- a pending call has nothing to time yet,
+// so it is reflected in TraceStats.toolCallsPending instead of here.
+export interface ToolStat {
+  name: string;
+  calls: number;
+  failures: number;
+  totalMs: number;
+  avgMs: number;
+  maxMs: number;
+  timeShare: number;
+}
+
+export interface TraceStats {
+  eventCounts: Record<TraceEventType, number>;
+  totalEvents: number;
+  wallClockMs: number;
+  toolTimeMs: number;
+  toolTimeShare: number;
+  toolCalls: number;
+  toolCallsCompleted: number;
+  toolCallsPending: number;
+  toolCallsFailed: number;
+  toolFailureRate: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  tools: ToolStat[];
+  orphanResults: number;
+}
