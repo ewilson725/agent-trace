@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { parseTrace } from './parse.ts';
 import { computeStats } from './stats.ts';
 import { renderStats, renderTimeline } from './render.ts';
@@ -158,8 +159,12 @@ export function run(
   return 0;
 }
 
-process.exitCode = run(process.argv.slice(2), {
-  stdout: (text) => process.stdout.write(text),
-  stderr: (text) => process.stderr.write(text),
-  readInput,
-});
+// Guard the real run so importing this module (e.g. from tests) to reuse
+// run() doesn't also execute it against the real process argv/stdio.
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.exitCode = run(process.argv.slice(2), {
+    stdout: (text) => process.stdout.write(text),
+    stderr: (text) => process.stderr.write(text),
+    readInput,
+  });
+}
