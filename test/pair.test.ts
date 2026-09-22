@@ -75,3 +75,38 @@ test('two sequential calls with no ids each close in call order', () => {
   assert.equal(spans[1].name, 'run_tests');
   assert.equal(spans[1].ok, false);
 });
+
+test('id-based results still pair correctly when they arrive out of call order', () => {
+  const events = [
+    call('c1', 'read_file', 0),
+    call('c2', 'run_tests', 10),
+    result('c2', 40, { ok: false }),
+    result('c1', 50, { ok: true }),
+  ];
+  const { spans, orphans } = pairToolEvents(events);
+  assert.equal(orphans.length, 0);
+  const [first, second] = spans;
+  assert.equal(first.name, 'read_file');
+  assert.equal(first.ok, true);
+  assert.equal(second.name, 'run_tests');
+  assert.equal(second.ok, false);
+});
+
+test('duplicate call ids pair with results in first-open-first-closed order', () => {
+  // Two calls sharing an id shouldn't happen in a well-formed trace, but when
+  // it does we don't want a wrong-id crash -- the oldest open call with that
+  // id claims the next result carrying it.
+  const events = [
+    call('dup', 'read_file', 0),
+    call('dup', 'read_file', 10),
+    result('dup', 20, { ok: true }),
+    result('dup', 30, { ok: false }),
+  ];
+  const { spans, orphans } = pairToolEvents(events);
+  assert.equal(orphans.length, 0);
+  const [first, second] = spans;
+  assert.equal(first.call.ts, 0);
+  assert.equal(first.ok, true);
+  assert.equal(second.call.ts, 10);
+  assert.equal(second.ok, false);
+});
