@@ -110,6 +110,46 @@ test('renderTimeline filters to a single tool, matching results by pairing', () 
   assert.match(output, /fail {2}1\.760s/);
 });
 
+test('renderTimeline labels results ok, fail, or plain result depending on ok', () => {
+  const events: TraceEvent[] = [
+    call('c1', 'a', 0),
+    result('c1', 1, { ok: true }),
+    call('c2', 'b', 1),
+    result('c2', 2, { ok: false }),
+    call('c3', 'c', 2),
+    result('c3', 3),
+  ];
+  const lines = renderTimeline(events).split('\n').filter((line) => !line.includes('call'));
+  assert.deepEqual(lines, ['  ok', '  fail', '  result']);
+});
+
+test('renderTimeline switches durations to seconds at 1000ms', () => {
+  const events: TraceEvent[] = [
+    call('c1', 'a', 0),
+    result('c1', 1, { ok: true, durationMs: 999 }),
+    call('c2', 'b', 1),
+    result('c2', 2, { ok: true, durationMs: 1000, output: 'done' }),
+  ];
+  const lines = renderTimeline(events).split('\n').filter((line) => !line.includes('call'));
+  assert.deepEqual(lines, ['  ok  999ms', '  ok  1.000s  done']);
+});
+
+test('renderTimeline falls back to String() for args JSON cannot serialize', () => {
+  const circular: Record<string, unknown> = {};
+  circular.self = circular;
+  assert.equal(renderTimeline([call('c1', 'read_file', 0, circular)]), '  call  read_file  [object Object]');
+});
+
+test('renderTimeline drops orphan results when filtering by tool', () => {
+  const events: TraceEvent[] = [result('missing', 0, { ok: true })];
+  assert.equal(renderTimeline(events, { tool: 'read_file' }), '');
+  assert.equal(renderTimeline(events), '  ok');
+});
+
+test('renderTimeline trims the trailing gap on text events with no text', () => {
+  assert.equal(renderTimeline([{ type: 'user' }, { type: 'assistant' }]), 'user\nassistant');
+});
+
 test('renderTimeline marks a pending call with no result line', () => {
   const output = renderTimeline([call('c1', 'read_file', 0)]);
   assert.equal(output, '  call  read_file');

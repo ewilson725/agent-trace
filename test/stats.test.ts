@@ -107,6 +107,34 @@ test('orphan results are counted but do not appear as spans', () => {
   assert.equal(stats.toolCalls, 0);
 });
 
+test('a completed call with no timing data counts as completed but stays out of the tool table', () => {
+  const stats = computeStats([call('c1', 'read_file'), result('c1', undefined, { ok: true })]);
+  assert.equal(stats.toolCalls, 1);
+  assert.equal(stats.toolCallsCompleted, 1);
+  assert.equal(stats.toolCallsPending, 0);
+  assert.equal(stats.toolTimeMs, 0);
+  assert.deepEqual(stats.tools, []);
+});
+
+test('duration falls back to the timestamp gap when the result has no durationMs', () => {
+  const stats = computeStats([call('c1', 'read_file', 100), result('c1', 350, { ok: true })]);
+  assert.equal(stats.toolTimeMs, 250);
+  assert.equal(stats.tools[0].totalMs, 250);
+  assert.equal(stats.tools[0].maxMs, 250);
+});
+
+test('an untimed failure counts in toolCallsFailed but not in the per-tool failures', () => {
+  const stats = computeStats([call('c1', 'run_tests'), result('c1', undefined, { ok: false })]);
+  assert.equal(stats.toolCallsFailed, 1);
+  assert.equal(stats.toolFailureRate, 1);
+  assert.deepEqual(stats.tools, []);
+});
+
+test('toolTimeShare is tool time over wall clock', () => {
+  const stats = computeStats([call('c1', 'read_file', 0), result('c1', 1000, { ok: true, durationMs: 500 })]);
+  assert.equal(stats.toolTimeShare, 0.5);
+});
+
 test('an empty trace produces zeroed-out stats rather than dividing by zero', () => {
   const stats = computeStats([]);
   assert.equal(stats.wallClockMs, 0);
